@@ -1,0 +1,33 @@
+# Senhas e arquivos sensíveis
+.vault_sonardb_secrets.txt
+*.vault_pass
+.vault_pass*
+vault_pass.txt
+vault_password*
+.vault_password_file
+.vault_pass
+
+# Arquivos de secrets não criptografados
+group_vars/all/vault.yml
+*.decrypted
+*.plain
+
+# Arquivos temporários do Ansible
+*.retry
+*.tmp
+
+# Arquivos de editor / IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Logs e outputs
+*.log
+nohup.out
+
+# Arquivos grandes ou desnecessários
+*.bak
+*.backup

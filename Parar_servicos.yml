@@ -1,0 +1,107 @@
+- name: Parar o jenkins no systemd
+  hosts: localhost
+  become: true
+  tasks: 
+
+    - name: Parar jenkins
+      ansible.builtin.systemd_service:
+        name: jenkins.service
+        enabled: false
+        state: stopped
+      tags: stop_jenkins  
+      register: jenkins_stop_result
+
+    - name: Verificar status do serviço
+      ansible.builtin.systemd_service:
+        name: jenkins.service 
+      register: jenkins_status
+      changed_when: false
+      tags: status-do-jenkins 
+
+    - name: Mostrar saída do status
+      ansible.builtin.debug:
+        msg:
+          Status: "{{ jenkins_status.status.ActiveState }}"
+          SubState: "{{ jenkins_status.status.SubState }}"
+          Enabled: "{{ jenkins_status.status.UnitFileState }}"
+      tags: saida-status-jenkins          
+        
+
+- name: Parar os containers e o Docker no systemd
+  hosts: localhost
+  become: true
+  vars_files:
+    - sonardb_secrets.yml
+  tasks:
+  
+    - name: Parar o Sonarqube (container)
+      community.docker.docker_container:
+        name: sonarqube 
+        image: sonarqube:lts-community
+        state: stopped
+        ports:
+          - "9000:9000"      
+      register: sonarqube_status
+      tags: parar-sonarqube
+
+    - name: Verificar status do container
+      community.docker.docker_container_info:
+        name: sonarqube
+      register: sonarqube_info
+      changed_when: false
+
+    - name: Mostrar status do container
+      ansible.builtin.debug:
+        var: sonarqube_info.container.State
+
+
+    - name: Parar o Postgres do Sonarqube
+      community.docker.docker_container:
+        name: sonarqube-db
+        image: postgres:13
+        state: stopped
+        restart_policy: no
+        ports:
+          - "5432:5432"
+        env: 
+          POSTGRES_USER: "{{ vault_postgres_user }}"
+          POSTGRES_PASSWORD: "{{ vault_postgres_password }}"
+          POSTGRES_DB: "{{ vault_postgres_db }}"   
+        volumes: 
+          - "0ee0a178f57e2491e94eaad6b7f03ff6a8486f8336be8a6def9d225eb8909b4a:/var/lib/postgresql/data"        
+      register: sonarqube_db   
+      no_log: true
+      tags: parar-sonarqube-db
+      
+    - name: Verificar status do container postgres
+      community.docker.docker_container_info:
+        name: sonarqube-db
+      register: postgres_info
+      changed_when: false  
+
+    - name: Mostrar status do container postgres 
+      ansible.builtin.debug:
+        var: postgres_info.container.State
+    
+    - name: Parar o docker no systemd
+      ansible.builtin.systemd_service:
+        name: docker.service
+        enabled: false
+        state: stopped
+      tags: iniciando-docker  
+      register: docker_status
+
+    - name: Verificar status do serviço
+      ansible.builtin.systemd_service: 
+        name: docker.service
+      register: docker_status
+      changed_when: false
+      tags: status-docker
+        
+    - name: Mostrar saída do status
+      ansible.builtin.debug:
+        msg:
+          Status: "{{ docker_status.status.ActiveState }}"
+          SubState: "{{ docker_status.status.SubState }}"
+          Enabled: "{{ docker_status.status.UnitFileState }}"  
+      tags: saida-status-docker
